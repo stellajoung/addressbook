@@ -1,0 +1,349 @@
+import java.io.*;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
+
+
+public class Main {
+
+
+    public static List filereader(String filepath, List whatlist) throws Exception{
+        File file = new File(filepath);
+        if (file.exists()){
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+
+            String line;
+
+            while ((line = reader.readLine()) != null){
+                StringTokenizer st = new StringTokenizer(line);
+                ArrayList<Object> temp = new ArrayList<>();
+                while (st.hasMoreTokens()) {
+                    temp.add(st.nextToken());
+                }
+                System.out.println(temp);
+                whatlist.add(temp);
+
+            }
+            reader.close();
+            System.out.println(whatlist);
+        }
+        return whatlist;
+    }
+
+    public static boolean checklogin(String correctusername, String correctpassword) throws Exception{
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        boolean result;
+        System.out.print("\nEnter username: ");
+        String username1 = br.readLine();
+        final String username = username1;
+        System.out.print("Enter password: ");
+        final String password = br.readLine();
+
+        if(username.equals(correctusername) && password.equals(correctpassword)) {
+            result = true;
+        }
+
+        else{
+            result = false;
+        }
+
+        if (result){
+            System.out.println("Login successful.");
+            System.out.println("Welcome " + username +".\n");
+            return true;
+        }
+        else{
+            System.out.println("Login failed.\nPlease login again.");
+            return checklogin(correctusername, correctpassword);
+        }
+    }
+
+    public static void loginwriter(String username, String password, String login_filepath) throws Exception {
+        File login_info = new File(login_filepath);
+        if (!login_info.exists()){
+            login_info.createNewFile();
+        }
+        BufferedWriter writer = new BufferedWriter(new FileWriter(login_info, false));
+
+        writer.write(username);
+        writer.newLine();
+        writer.write(password);
+        writer.newLine();
+
+        writer.flush();
+        writer.close();
+    }
+
+
+    public static Connection connect(String databasename){
+
+        Connection c = null;
+        try {
+            Class.forName("org.sqlite.JDBC");
+            c = DriverManager.getConnection("jdbc:sqlite:" + databasename+ ".db");
+        } catch (SQLException | ClassNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+        return c;
+    }
+
+    public static void create_database(String databasename) {
+        Connection c = null;
+        Statement stmt = null;
+
+        try {
+            c = connect(databasename);
+
+            stmt = c.createStatement();
+            String sql = "CREATE TABLE IF NOT EXISTS " + databasename +" " +
+                    "(NAME           TEXT    NOT NULL, " +
+                    " AGE            INT     NOT NULL, " +
+                    " ADDRESS        TEXT    NOT NULL, " +
+                    " EMAIL_ADDRESS  TEXT    NOT NULL, " +
+                    " PHONE_NUMBER   TEXT    NOT NULL)";
+            stmt.executeUpdate(sql);
+            stmt.close();
+            c.close();
+
+        } catch ( Exception e ) {
+            System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+        }
+        System.out.println("Table created successfully");
+    }
+
+    public static void openfile(String databasename){
+        Connection c = null;
+        Statement stmt = null;
+        try {
+            c = connect(databasename);
+            c.setAutoCommit(false);
+
+            stmt = c.createStatement();
+            ResultSet rs = stmt.executeQuery( "SELECT * FROM "+ databasename);
+
+            while ( rs.next() ) {
+                String  name = rs.getString("NAME");
+                int age  = rs.getInt("AGE");
+                String  address = rs.getString("ADDRESS");
+                String  emailaddress = rs.getString("EMAIL_ADDRESS");
+                String phonenumber  = rs.getString("PHONE_NUMBER");
+
+                System.out.println("Name : " + name);
+                System.out.println("Age : " + age);
+                System.out.println("Address : " + address);
+                System.out.println("Email address : " + emailaddress);
+                System.out.println("Phone number : " + phonenumber);
+                System.out.println();
+            }
+            rs.close();
+            stmt.close();
+            c.close();
+        } catch ( Exception e ) {
+            System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+        }
+
+
+    }
+
+    public static void addentry(String databasename, String name, Integer age, String address, String emailaddress, String phonenumber){
+        Connection c = null;
+        Statement stmt = null;
+        String SQL = "INSERT INTO "+ databasename +"(NAME, AGE, ADDRESS, EMAIL_ADDRESS, PHONE_NUMBER) VALUES(?,?,?,?,?)";
+        try {
+            c = connect(databasename);
+            c.setAutoCommit(true);
+
+            PreparedStatement ps = c.prepareStatement(SQL);
+
+            ps.setString(1, name);
+            System.out.println(name);
+            ps.setInt(2, Integer.parseInt(String.valueOf(age)));
+            ps.setString(3, address);
+            ps.setString(4, emailaddress);
+            ps.setString(5, phonenumber);
+            ps.executeUpdate();
+
+        } catch ( Exception e ) {
+            System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+        }
+    }
+
+    public static void editentry(String databasename, String old_type, String old_value, String new_type, String new_value){
+        Connection c = null;
+        Statement stmt = null;
+        String SQL = "INSERT INTO "+ databasename +"(NAME, AGE, ADDRESS, EMAIL_ADDRESS, PHONE_NUMBER) VALUES(?,?,?,?,?)";
+        try {
+            c = connect(databasename);
+            c.setAutoCommit(false);
+
+            stmt = c.createStatement();
+            String sql = "UPDATE " + databasename +" set " + new_type + "=" + new_value + " where " + old_type + "=" + old_value +";";
+            stmt.executeUpdate(sql);
+            c.commit();
+
+            stmt.close();
+            c.close();
+            System.out.println("Entry successfully edited.");
+
+        } catch ( Exception e ) {
+            System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+        }
+    }
+
+    public static void Page2() throws Exception{
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String ans;
+        try {
+            while (true) {
+                System.out.println("\nChoose what to do next:\n1. add an entry\n2. edit an existing entry\n3. remove an entry\n4. sort data file\n5. search for specific entry\n6. view existing address book\n7. create new address book\n 8. exit");
+                System.out.print("Please enter your choice (1 or 2 or 3 or 4 or 5 or 6) : ");
+                ans = br.readLine();
+                br = new BufferedReader(new InputStreamReader(System.in));
+                switch(ans){
+                    case("1"):
+                        System.out.print("Enter name of address book you want to add entry to:");
+                        String databasename = br.readLine();
+                        System.out.println("Enter (name, age, address, email address, phone number) in order all separated by a space");
+                        ans = br.readLine();
+                        StringTokenizer st = new StringTokenizer(ans);
+                        String name = st.nextToken();
+                        Integer age = Integer.valueOf(st.nextToken());
+                        String address = st.nextToken();
+                        String emailaddress = st.nextToken();
+                        String phonenumber = st.nextToken();
+                        addentry(databasename, name, age, address, emailaddress, phonenumber);
+                        break;
+                    case("2"):
+                        System.out.print("Enter name of address book entry you want to edit:");
+                        databasename = br.readLine();
+                        System.out.println("Enter data type and value of entry you want to edit (separated by space)");
+                        System.out.println("(ex. if you want to edit an entry which has name 'Stella' you would type 'name stella')");
+                        System.out.print("-> ");
+                        ans = br.readLine();
+                        st = new StringTokenizer(ans);
+                        String old_type = st.nextToken();
+                        String old_value = st.nextToken();
+                        System.out.println("Enter new data type and value you want to insert into the selected entry (separate by space)");
+                        System.out.print("-> ");
+                        st = new StringTokenizer(ans);
+                        String new_type = st.nextToken();
+                        String new_value = st.nextToken();
+                        editentry(databasename, old_type, old_value, new_type, new_value);
+                        break;
+                    case("3"):
+                        break;
+                    case("4"):
+                        break;
+                    case("5"):
+                        break;
+
+                    case("6"):
+                        System.out.print("\nEnter name of database you want to open:");
+                        databasename = br.readLine();
+                        openfile(databasename);
+                        break;
+                    case("7"):
+                        System.out.print("\nEnter name of database:");
+                        databasename = br.readLine();
+                        create_database(databasename);
+                        break;
+                    case("8"):
+                        System.exit(0);
+                    default :
+                        System.out.println("\nPlease answer again in one of the answer choices\n");
+                }
+
+            }
+
+        } catch (Exception e) {
+            System.out.println("\nPlease answer again in a valid format\n");
+        }
+
+    }
+
+/*
+    public static void Page4() throws Exception{
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String ans;
+        try {
+            while (true) {
+                System.out.println("\nWould you like to:\n1. open existing database file\n2. create new database file\n3. exit");
+                System.out.print("Please enter your choice (1 or 2 or 3 or 4 or 5) : ");
+                ans = br.readLine();
+                br = new BufferedReader(new InputStreamReader(System.in));
+                switch(ans){
+                    case("1"):
+                        System.out.print("\nEnter name of database you want to open:");
+                        String databasename = br.readLine();
+                        openfile(databasename);
+                        break;
+
+                    case("2"):
+                        System.out.print("\nEnter name of database:");
+                        databasename = br.readLine();
+                        create_database(databasename);
+                        break;
+
+                    case("3"):
+                        System.exit(0);
+                    default :
+                        System.out.println("\nPlease answer again in one of the answer choices\n");
+                }
+                break;
+
+            }
+
+        } catch (Exception e) {
+            System.out.println("\nPlease answer again in a valid format\n");
+        }
+
+    }
+
+ */
+
+    public static void Page1(String login_filepath) throws Exception {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String ans, username, password;
+        ArrayList<ArrayList<String>> logininfo = new ArrayList<>();
+        System.out.println("Welcome to the Mochi Shop.");
+        try {
+            while (true) {
+                System.out.println("\nWould you like to:\n1. login to your existing account\n2. Create a new account");
+                System.out.print("Please enter your choice (1 or 2) : ");
+                ans = br.readLine();
+                if (ans.equals("1")) {
+                    break;
+                }
+                if (ans.equals("2")) {
+                    System.out.print("\nEnter your new username: ");
+                    username = br.readLine();
+                    System.out.print("Enter your new password ");
+                    password = br.readLine();
+                    loginwriter(username, password, login_filepath);
+                    System.out.println("Your account has been successfully created.");
+                    break;
+
+                } else {
+                    System.out.println("\nPlease answer again in one of the answer choices\n");
+                }
+            }
+            filereader(login_filepath, logininfo);
+            checklogin(logininfo.get(0).get(0), logininfo.get(1).get(0));
+
+        } catch (Exception e) {
+            System.out.println("\nPlease answer again in a valid format\n");
+        }
+
+    }
+
+    public static void main(String[] args) throws Exception {
+        File login = new File("login_info.txt");
+        String login_filepath = login.getAbsolutePath();
+        //new Main().Page1(login_filepath);
+        new Main().Page2();
+        Page2();
+
+    }
+
+}
