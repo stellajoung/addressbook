@@ -1,0 +1,501 @@
+import java.io.*;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.StringTokenizer;
+
+
+public class Main {
+
+
+    public static List filereader(String filepath, List whatlist) throws Exception{
+        File file = new File(filepath);
+        if (file.exists()){
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+
+            String line;
+
+            while ((line = reader.readLine()) != null){
+                StringTokenizer st = new StringTokenizer(line);
+                while (st.hasMoreTokens()) {
+                    whatlist.add(st.nextToken());
+                }
+            }
+            reader.close();
+            System.out.println(whatlist);
+        }
+        return whatlist;
+    }
+
+    public static boolean checklogin(String correctusername, String correctpassword) throws Exception{
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        boolean result;
+        System.out.print("\nEnter username: ");
+        String username1 = br.readLine();
+        final String username = username1;
+        System.out.print("Enter password: ");
+        final String password = br.readLine();
+
+        if(username.equals(correctusername) && password.equals(correctpassword)) {
+            result = true;
+        }
+
+        else{
+            result = false;
+        }
+
+        if (result){
+            System.out.println("Login successful.");
+            System.out.println("Welcome " + username +".\n");
+            return true;
+        }
+        else{
+            System.out.println("Login failed.\nPlease login again.");
+            return checklogin(correctusername, correctpassword);
+        }
+    }
+
+    public static void loginwriter(String username, String password, String login_filepath) throws Exception {
+        File login_info = new File(login_filepath);
+        if (!login_info.exists()){
+            login_info.createNewFile();
+        }
+        BufferedWriter writer = new BufferedWriter(new FileWriter(login_info, false));
+
+        writer.write(username);
+        writer.newLine();
+        writer.write(password);
+        writer.newLine();
+
+        writer.flush();
+        writer.close();
+    }
+
+
+    public static ArrayList connect(String username) throws SQLException{
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        Connection c = null;
+        String tablename = null;
+        ArrayList<Object> temp = new ArrayList<>();
+        Statement stmt = null;
+        while(true) {
+            try {
+                System.out.print("\nEnter name of address book you want to perform the operation on: ");
+                tablename = br.readLine();
+
+                Class.forName("org.sqlite.JDBC");
+                c = DriverManager.getConnection("jdbc:sqlite:" + username + ".db"); // database name
+                temp.add(c);
+                temp.add(tablename); // address book name
+
+                stmt = c.createStatement();
+                String sql = "CREATE TABLE IF NOT EXISTS " + tablename +" " +
+                        "(NAME           TEXT   , " +
+                        " AGE            INT    , " +
+                        " ADDRESS        TEXT   , " +
+                        " EMAIL_ADDRESS  TEXT   , " +
+                        " PHONE_NUMBER   TEXT   )";
+                stmt.executeUpdate(sql);
+                stmt.close();
+
+            } catch (SQLException | ClassNotFoundException | IOException e) {
+                System.out.println("That address book file does not exist.");
+                continue;
+            }
+            System.out.println(temp);
+            return temp;
+        }
+    }
+
+    public static void create_database(String username, String tablename) throws SQLException {
+        Connection c = null;
+        Statement stmt = null;
+        ArrayList<Object> connection = new ArrayList<>();
+        try {
+            Class.forName("org.sqlite.JDBC");
+            c = DriverManager.getConnection("jdbc:sqlite:" + username + ".db");
+
+            stmt = c.createStatement();
+            String sql = "CREATE TABLE IF NOT EXISTS " + tablename +" " +
+                    "(NAME           TEXT   , " +
+                    " AGE            INT    , " +
+                    " ADDRESS        TEXT   , " +
+                    " EMAIL_ADDRESS  TEXT   , " +
+                    " PHONE_NUMBER   TEXT   )";
+            stmt.executeUpdate(sql);
+            stmt.close();
+            c.close();
+
+            System.out.println("address book file " + tablename + " successfully created.");
+
+        } catch ( Exception e ) {
+            System.out.println("Enter a valid value");
+        }
+    }
+
+
+    public static void openfile(String username) throws Exception{
+        Connection c = null;
+        Statement stmt = null;
+        ArrayList<Object> connection = new ArrayList<>();
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String tablename = null;
+        try {
+            connection = connect(username);
+            c = (Connection) connection.get(0);
+            tablename = (String) connection.get(1);
+            c.setAutoCommit(false);
+
+            stmt = c.createStatement();
+            ResultSet rs = stmt.executeQuery( "SELECT * FROM "+ tablename);
+            System.out.println("Name  | age    | address     | email address    | phone number");
+
+            while ( rs.next() ) {
+                String  name = rs.getString("NAME");
+                int age  = rs.getInt("AGE");
+                String  address = rs.getString("ADDRESS");
+                String  emailaddress = rs.getString("EMAIL_ADDRESS");
+                String phonenumber  = rs.getString("PHONE_NUMBER");
+                System.out.println(name + " ,  " + age +  " ,  " + address + " ,  " + emailaddress + " ,  " + phonenumber);
+
+                /*
+                System.out.println("Name : " + name);
+                System.out.println("Age : " + age);
+                System.out.println("Address : " + address);
+                System.out.println("Email address : " + emailaddress);
+                System.out.println("Phone number : " + phonenumber);
+                System.out.println();
+
+                 */
+            }
+            rs.close();
+            stmt.close();
+            c.close();
+
+        } catch ( Exception e ) {
+
+            while(true){
+                br = new BufferedReader(new InputStreamReader(System.in));
+                System.out.println("Would you like to create a new address book named : " + tablename + "? (yes/no)");
+                String ans = br.readLine();
+                if(ans.equals("yes")){
+                    create_database(username, tablename);
+                    break;
+                }
+                if(ans.equals("no")){
+                    break;
+                }
+                else{
+                    System.out.println("Please answer in either yes or no");
+                }
+
+            }
+
+        }
+    }
+
+    public static void addentry(String username) throws SQLException{
+        Connection c = null;
+        Statement stmt = null;
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        ArrayList<Object> connection = new ArrayList<>();
+        String age;
+        while(true) {
+            try {
+                connection = connect(username);
+                c = (Connection) connection.get(0);
+                String databasename = (String) connection.get(1);
+                c.setAutoCommit(true);
+
+                String SQL = "INSERT INTO " + databasename + "(NAME, AGE, ADDRESS, EMAIL_ADDRESS, PHONE_NUMBER) VALUES(?,?,?,?,?)";
+                System.out.println("Enter (name, age, address, email address, phone number) in order all separated by a space");
+                System.out.println("If you want to leave a value blank, write 'none'");
+                System.out.print("-> ");
+                String ans = br.readLine();
+                StringTokenizer st = new StringTokenizer(ans);
+                String name = st.nextToken();
+                age = st.nextToken();
+                String address = st.nextToken();
+                String emailaddress = st.nextToken();
+                String phonenumber = st.nextToken();
+
+                String[] temp = {name, age, address, emailaddress, phonenumber};
+                for(int i = 0; i < temp.length; i++){
+                    if (temp[1].equals("none")){
+                        System.out.println("wy");
+                        temp[1] = String.valueOf(0);
+                        }
+                    else if(temp[i].equals("none")){
+                        temp[i] = null;}
+                }
+
+                PreparedStatement ps = c.prepareStatement(SQL);
+
+                ps.setString(1, temp[0]);
+                ps.setInt(2, Integer.parseInt(temp[1]));
+                ps.setString(3, temp[2]);
+                ps.setString(4, temp[3]);
+                ps.setString(5, temp[4]);
+                ps.executeUpdate();
+                break;
+            } catch (Exception e) {
+                System.err.println(e.getClass().getName() + ": " + e.getMessage());
+                System.out.println("Please answer in a valid form");
+            }
+        }
+    }
+
+    public static void editentry(String username){
+        Connection c = null;
+        Statement stmt = null;
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        Object old_value =null, new_value = null;
+        //String SQL = "INSERT INTO "+ databasename +"(NAME, AGE, ADDRESS, EMAIL_ADDRESS, PHONE_NUMBER) VALUES(?,?,?,?,?)";
+        ArrayList<Object> connection = new ArrayList<>();
+        while(true) {
+            try {
+                connection = connect(username);
+                c = (Connection) connection.get(0);
+                String databasename = (String) connection.get(1);
+                c.setAutoCommit(false);
+
+                System.out.println("Enter data type and value of entry you want to edit (separated by space)");
+                System.out.println("(ex. if you want to edit an entry which has name 'Stella' you would type 'name stella')");
+                System.out.print("-> ");
+                String ans = br.readLine();
+                StringTokenizer st = new StringTokenizer(ans);
+                String old_type = st.nextToken();
+                String temp = st.nextToken();
+                if (old_type.equals("age")) {
+                    old_value = Integer.parseInt(temp);
+                } else {
+                    old_value = temp;
+                }
+                old_type.toUpperCase();
+
+                System.out.println("Enter new data type and value you want to insert into the selected entry (separate by space)");
+                System.out.print("-> ");
+                st = new StringTokenizer(ans);
+                String new_type = st.nextToken();
+                String temps = st.nextToken();
+                new_type.toUpperCase();
+                if (new_type.equals("AGE")) {
+                    new_value = Integer.parseInt(temps);
+                } else {
+                    new_value = temps;
+                }
+
+                stmt = c.createStatement();
+                String sql = "UPDATE " + databasename + " set " + new_type + "=" + new_value + " where " + old_type + "=" + old_value + ";";
+                stmt.executeUpdate(sql);
+                c.commit();
+
+                stmt.close();
+                c.close();
+                System.out.println("Entry successfully edited.");
+                break;
+            } catch (Exception e) {
+                //System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+                System.out.println("That entry does not exist. Please re-enter an existing entry");
+            }
+        }
+    }
+
+    public static void deleteentry(String username){
+        Connection c = null;
+        Statement stmt = null;
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        Object old_value =null;
+        ArrayList<Object> connection = new ArrayList<>();
+        String sql = null;
+        while(true) {
+            try {
+                connection = connect(username);
+                c = (Connection) connection.get(0);
+                String databasename = (String) connection.get(1);
+                c.setAutoCommit(false);
+
+                System.out.println("Enter one data type and value of the entry that you want to delete (separated by space)");
+                System.out.println("(ex. if you want to delete an entry which has name 'Stella' you would type 'name stella')");
+                System.out.print("-> ");
+                String ans = br.readLine();
+                StringTokenizer st = new StringTokenizer(ans);
+                String old_type = st.nextToken();
+                String temp = st.nextToken();
+                old_type.toUpperCase();
+                /*
+
+                if (old_type.equals("AGE")) {
+                    old_value = Integer.parseInt(temp);
+                } else {
+                    old_value = "'" + temp + "'";
+                }
+
+
+
+                // converting age input to int
+                if (old_type.equals("AGE")){
+                    old_value = Integer.parseInt(temp);
+                }else {
+                    old_value = "'" + temp + "'";
+                }
+
+                // converting int none -> 0, string none -> null
+                if (temp.equals("none")) {
+                    old_value = Integer.parseInt(temp);
+                }else{
+                    old_value = null;
+                }
+
+                 */
+                if (old_type.equals("AGE")&&!temp.equals("none")){
+                    old_value = Integer.parseInt(temp);
+                    sql = "DELETE from " + databasename + " where " + old_type + "=" + old_value + ";";
+                }
+                if(!old_type.equals("AGE")){
+                    old_value = "'" + temp + "'";
+                    sql = "DELETE from " + databasename + " where " + old_type + "=" + old_value + ";";
+                }
+                if(temp.equals("none")&&old_type.equals("AGE")){
+                    old_value = 0;
+                    sql = "DELETE from " + databasename + " where " + old_type + "=" + old_value + ";";
+                }
+                if(temp.equals("none")&&!old_type.equals("AGE")){
+                    old_value = "NULL";
+                    sql = "DELETE from " + databasename + " where " + old_type + " IS NULL OR TRIM(" + old_type + ") = ''" + ";";
+                }
+                else{}
+
+                stmt = c.createStatement();
+                System.out.println(old_type);
+                System.out.println(old_value);
+
+                stmt.executeUpdate(sql);
+                c.commit();
+
+                stmt.close();
+                c.close();
+                break;
+            } catch (Exception e) {
+                //System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+                System.out.println("That entry does not exist. Please re-enter an existing entry");
+            }
+        }
+
+    }
+
+
+    public static void sortfile(String userename){
+
+    }
+    public static void Page2(String username) throws Exception{
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String ans;
+        while (true) {
+            try {
+                System.out.println("\nChoose what to do next:\n1. add an entry\n2. edit an existing entry\n3. remove an entry\n4. sort data file\n5. search for specific entry\n6. view existing address book\n7. create new address book\n8. exit");
+                System.out.print("Please enter your choice (1/2/3/4/5/6/7/8) : ");
+                ans = br.readLine();
+                br = new BufferedReader(new InputStreamReader(System.in));
+                switch (ans) {
+                    case ("1"):
+                        addentry(username);
+                        break;
+                    case ("2"):
+                        editentry(username);
+                        break;
+                    case ("3"):
+                        deleteentry(username);
+                        break;
+                    case ("4"):
+
+                        break;
+                    case ("5"):
+                        break;
+                    case ("6"):
+                        openfile(username);
+                        break;
+                    case ("7"):
+                        connect(username);
+                        System.out.println("\nAddress book has been successfully created\n");
+                        break;
+                    case ("8"):
+                        System.exit(0);
+                    default:
+                        System.out.println("\nPlease answer again in one of the answer choices\n");
+                }
+
+            } catch (Exception e) {
+                System.out.println("\nPlease answer again in a valid format\n");
+            }
+        }
+
+    }
+
+    public static void new_account(ArrayList logininfo, String login_filepath) throws Exception{
+        String username = null, password;
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        while(true) {
+            System.out.print("\nEnter your new username: ");
+            username = br.readLine();
+            if (username.equals(logininfo.get(0))){
+                System.out.println("\nThat username already exists. Please enter a new username.");
+                continue;
+            }
+            else{
+            }
+            System.out.print("Enter your new password ");
+            password = br.readLine();
+            loginwriter(username, password, login_filepath);
+            System.out.println("Your account has been successfully created.");
+            logininfo = new ArrayList<>();
+            filereader(login_filepath, logininfo);
+            checklogin((String) logininfo.get(0), (String) logininfo.get(1));
+            break;
+        }
+    }
+
+
+    public static String Page1(String login_filepath) throws Exception {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String ans, username = null, password;
+        ArrayList<String> logininfo = new ArrayList<>();
+        
+        while(true) {
+            try {
+                System.out.println("\nWould you like to:\n1. login to your existing account\n2. Create a new account");
+                System.out.print("Please enter your choice (1 or 2) : ");
+                ans = br.readLine();
+                if (ans.equals("1")) {
+                    filereader(login_filepath, logininfo);
+                    checklogin(logininfo.get(0), logininfo.get(1));
+                    break;
+                }
+                if (ans.equals("2")) {
+                    filereader(login_filepath, logininfo);
+                    new_account(logininfo, login_filepath);
+                    break;
+
+                } else {
+                    System.out.println("\nPlease answer again in one of the answer choices\n");
+                }
+
+            } catch (Exception e) {
+                System.out.println("\nPlease answer again in a valid format\n");
+            }
+        }
+        username = logininfo.get(0);
+        return username;
+    }
+
+    public static void main(String[] args) throws Exception {
+        File login = new File("login_info.txt");
+        String login_filepath = login.getAbsolutePath();
+        String username = new Main().Page1(login_filepath);
+        Page2(username);
+
+
+    }
+
+}
